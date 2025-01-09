@@ -1,0 +1,18 @@
+name: publish docker image
+
+on:
+  push
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build and publish image
+        run: |
+          docker login --username ${{ github.repository_owner }} --password ${{ secrets.GH_PAT }} ghcr.io
+          docker build -t ghcr.io/${{ github.repository_owner }}/cit-results-api:latest .
+          docker push ghcr.io/${{ github.repository_owner }}/cit-results-api:latest
+
