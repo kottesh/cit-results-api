@@ -1,8 +1,11 @@
 # cit-results-api
 
 ```
-$ docker build -t cit-results-api .
-$ docker run -dp 8485:5000 -v "$(pwd):/app" --name cit-results-api cit-results-api:latest
+#pull the image from github registry
+$ docker pull ghcr.io/kottesh/cit-results-api:latest
+
+# run it.
+$docker run -dp 5000:5000 ghcr.io/kottesh/cit-results-api:latest
 ```
 
-open `localhost:8485` where you could test the api.
+open `localhost:5000` to access the docs.
