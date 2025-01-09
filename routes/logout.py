@@ -1,21 +1,30 @@
 from flask import request
 from flask_smorest import Blueprint, abort
+from flask.views import MethodView
+from bs4 import BeautifulSoup
 import requests
+
 from config import Config
 
-logout_blp = Blueprint("logout", __name__)
+logout = Blueprint("logout", __name__)
 
-@logout_blp.route('/logout', methods=["GET"])
-def logout():
-    cookies = request.get_json()['cookies']
+@logout.route("/logout")
+class Logout(MethodView):
+    def get(self):
+        try:
+            cookie = request.get_json()['cookie']
+            header = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            }
 
-    header = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    }
+            response = requests.get(f"{Config.BASE_URL}/studentlogin/logout.php", headers=header, cookies=cookie)
 
-    response = requests.get(f"{Config.BASE_URL}/studentlogin/logout.php", headers=header, cookies=cookies)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title = soup.find("title").string
 
-    if 'logged out' in response.text.lower():
-        return {"message": "you are now logged out!"}, 200
+            if title and 'logout' in title.lower():
+                return {"message": "you are now logged out!"}, 200
 
-    abort(500, message="error occured can't logout")
+            abort(500, message="Error occured logout failed.")
+        except KeyError:
+            abort(404, message="cookie not found")

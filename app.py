@@ -1,19 +1,30 @@
 from flask import Flask
-from flask_smorest import Api
+from flask_smorest import Api, Blueprint
 from config import Config
+from routes import (
+    login,
+    logout,
+    notice_board,
+    hallticket,
+    profile,
+    result
+)
 
-server = Flask(__name__)
-server.config.from_object(Config)
-api = Api(server)
+def create_app():
+    server = Flask(__name__)
+    server.config.from_object(Config)
 
-from routes import login, logout, hallticket, notice_board, profile, results
+    api = Api(server)
 
-api.register_blueprint(hallticket.ht_blp)
-api.register_blueprint(login.login_blp)
-api.register_blueprint(logout.logout_blp)
-api.register_blueprint(notice_board.nb_blp)
-api.register_blueprint(profile.profile_blp)
-api.register_blueprint(results.result_blp)
+    v1 = Blueprint("v1", __name__, url_prefix="/api/v1")
 
-if __name__ == "__main__":
-    server.run(debug = True)
+    v1.register_blueprint(login)
+    v1.register_blueprint(logout)
+    v1.register_blueprint(notice_board)
+    v1.register_blueprint(hallticket)
+    v1.register_blueprint(profile)
+    v1.register_blueprint(result)
+
+    api.register_blueprint(v1)
+
+    return server

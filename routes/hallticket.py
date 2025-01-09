@@ -1,43 +1,34 @@
 from flask import request
+from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from bs4 import BeautifulSoup
 import requests
+
 from config import Config
 
-"""
-TODO: complete hallticket route
-I have token convention in the new rewrite but still haven't implemented the
-way to store the cookies in the server and provide only the auth token
-"""
+hallticket = Blueprint("Hallticket", __name__)
 
-ht_blp = Blueprint("hallticket", __name__, description="hallticket route")
+@hallticket.route("/hallticket")
+class Hallticket(MethodView):
+    def get(self):
+        try:
+            cookies = request.get_json()['cookies']
+            header = {
+                "user-agent": "mozilla/5.0 (windows nt 10.0; win64; x64) applewebkit/537.36 (khtml, like gecko) chrome/131.0.0.0 safari/537.36",
+            }
 
-@ht_blp.route("/hallticket", methods=["GET"])
-def get_hallticket():
-    data = request.get_json()
+            response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/param_exam_hallticket.php", headers=header, cookies=cookies)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            halltickets = soup.find_all("a", attrs={"onclick": "exam_hallticket()"})
 
-    try:
-        cookies = data['cookies']
+            res_data = list(map(lambda ticket : {
+                "name": ticket.parent.a.string.strip().capitalize(),
+                "code": ticket.parent.input.get('value'),
+                "pdf_link": f"https://citstudentportal.org/studentlogin/exam/rpt_exam_hallticket.php?exam_cd={ticket.parent.input.get('value')}&roll_no={cookies['roll_no']}"
+                }
+                ,halltickets
+            ))
 
-        if 'roll_no' not in cookies: 
-            abort(404, message="roll_no not found in cookie")
-
-        header = {
-            "user-agent": "mozilla/5.0 (windows nt 10.0; win64; x64) applewebkit/537.36 (khtml, like gecko) chrome/131.0.0.0 safari/537.36",
-        }
-
-        response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/param_exam_hallticket.php", headers=header, cookies=cookies)
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        exam_code = soup.find("input", id="exam_cd").get('value').strip()
-
-        pdf_data = requests.get(f"https://citstudentportal.org/studentlogin/exam/rpt_exam_hallticket.php?exam_cd={exam_code}&roll_no={cookies['roll_no']}", cookies=cookies, headers=header)
-        with open("ht.pdf", "wb") as pdf:
-            pdf.write(pdf_data.content)
-
-        '''
-        TODO: need to return the pdf link here. need to figure it out.
-        '''
-        return {}
-    except KeyError:
-        abort(404, message="cookies not provided")
+            return {"halltickets": res_data}, 200
+        except KeyError:
+            abort(404, message="cookies not found")

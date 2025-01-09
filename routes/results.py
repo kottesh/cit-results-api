@@ -1,88 +1,71 @@
-from flask import request
+from flask import request, jsonify
 from flask_smorest import Blueprint, abort
 from bs4 import BeautifulSoup
 import requests
+
 from config import Config
 
-"""
-This route just displays the exam codes for different
+result = Blueprint("results", __name__)
 
-TODO: rewrite this route in human way
-     "
-        This shows the codes. But instead return semester like "Semester 1", "Semester 2", etc.,
-     "
-"""
+header = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+}
 
-result_blp = Blueprint("results", __name__)
-
-@result_blp.route('/results', methods=['GET'])
+@result.get("/result")
 def results():
-    cookies = request.get_json().get('cookies')
+    try:
+        cookie = request.get_json()['cookie']
 
-    if not cookies:
-        return {"message": "cookies not provided"}, 403
+        response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/exam_result.php", headers=header, cookies=cookie)
+        soup = BeautifulSoup(response.content, 'html.parser')
 
-    header = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    }
+        exam_codes = [option['value'].strip()[:-1] for option in soup.find_all("option")]
 
-    response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/exam_result.php", headers = header, cookies = cookies)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    exam_sessions = soup.find_all("option")
-
-    exam_codes = []
-
-    for exam in exam_sessions:
-        exam_codes.append(exam.get('value')[:-1])
-
-    return {"exam_codes": exam_codes}, 200
+        return exam_codes, 200
+    except KeyError:
+        abort(404, message="cookie not found")
 
 """
-TODO: implement pdf
+TODO: Improve this route. Instead of scraping data from site
+      which contains info about result such as course_code,
+      course_name, grade, pass/fail. But It doesn't show the CGPA
+      or GPA, I could get this data from the pdf.
+
+      fixin: May scrap the data from the pdf I guess!.
 """
-@result_blp.route('/results/<string:exam_code>', methods=['GET'])
-def get_result_by_exam_code(exam_code):
-    cookies = request.get_json().get('cookies')
+@result.get("result/<string:exam_code>")
+def getResultByExamCode(exam_code):
+    try:
+        cookie = request.get_json()['cookie']
+        response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/exam_result.php", headers = header, cookies = cookie)
+        soup = BeautifulSoup(response.content, 'html.parser') 
 
-    if not cookies:
-        return {"message": "cookies not provided"}, 403
+        exam_codes = [option['value'].strip() for option in soup.find_all("option")]
 
-    header = {
-        "user-agent": "mozilla/5.0 (windows nt 10.0; win64; x64) applewebkit/537.36 (khtml, like gecko) chrome/131.0.0.0 safari/537.36",
-    }
-
-    """
-    TODO: enhance data processing, fetching
-    """
-    response = requests.get(f"{Config.BASE_URL}/studentlogin/exam/exam_result.php", headers = header, cookies = cookies)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    exam_codes = [code.get('value') for code in soup.find_all("option")]
-
-    results = {}
-
-    for code in exam_codes:
-        table = soup.find('div', id=f'div_{code[-1]}')
+        if not any(code.startswith(exam_code) for code in exam_codes):
+            abort(404, message="exam code not found")
+        
+        table = soup.find('div', id=f"div_{exam_code}")
+        rows = table.find_all("tr", class_="row1")
         data = [
-            [td.string.strip().replace("$", "") for td in tr.find_all("td", class_="tablecol2")]
-            for tr in table.find_all("tr", class_="row1")
+            td.get_text(strip=True).replace("$", "") 
+            for td in row.find_all("td", class_="tablecol2")
+            for row in rows
         ]
 
-        result = {
-            "semester": data[0][0],
-            "results": [],
-        }
+        result = {subject[0]: subject[1:] for subject in data}
 
-        for item in data:
-            result["results"].append({
-                "course_code": item[1],
-                "course_name": item[2],
-                "grade": item[3],
-                "result": item[4]
-            })
+        return jsonify(result), 200
+    except KeyError:
+        abort(404, message="cookie not found")
 
-        results[code[:-1]] = result
-
-    if exam_code in results:
-        return { "results": results[exam_code]}, 200
-
-    return {"message": f"no exam_code `{exam_code}` found"}, 404
+"""
+TODO: Implement this route, send pdf data as json.
+"""
+@result.get("result/<string:exam_code>/pdf")
+def getPdfByExamCode(exam_code):
+    try:
+        cookie = request.get_json()['cookie']
+        return {}
+    except:
+        abort(404, message="cookie not found")
