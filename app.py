@@ -1,30 +1,38 @@
 from flask import Flask
+from flask_jwt_extended import JWTManager
 from flask_smorest import Api, Blueprint
 from config import Config
 from routes import (
-    login,
-    logout,
-    notice_board,
-    hallticket,
-    profile,
-    result
+    login_bp,
+    logout_bp,
+    notice_board_bp,
+    hallticket_bp,
+    profile_bp,
+    result_bp
 )
 
 def create_app():
-    server = Flask(__name__)
-    server.config.from_object(Config)
+    app = Flask(__name__)
+    app.config.from_object(Config)
 
-    api = Api(server)
+    api = Api(app)
+    jwt = JWTManager(app)
 
     v1 = Blueprint("v1", __name__, url_prefix="/api/v1")
 
-    v1.register_blueprint(login)
-    v1.register_blueprint(logout)
-    v1.register_blueprint(notice_board)
-    v1.register_blueprint(hallticket)
-    v1.register_blueprint(profile)
-    v1.register_blueprint(result)
+    v1.register_blueprint(login_bp)
+    v1.register_blueprint(logout_bp)
+    v1.register_blueprint(notice_board_bp)
+    v1.register_blueprint(hallticket_bp)
+    v1.register_blueprint(profile_bp)
+    v1.register_blueprint(result_bp)
 
     api.register_blueprint(v1)
 
-    return server
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run()
+else:
+    app = create_app()

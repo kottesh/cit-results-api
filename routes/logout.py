@@ -1,30 +1,39 @@
-from flask import request
 from flask_smorest import Blueprint, abort
 from flask.views import MethodView
 from bs4 import BeautifulSoup
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from extensions import rcli
 import requests
 
 from config import Config
 
-logout = Blueprint("logout", __name__)
+logout_bp = Blueprint("logout", __name__)
 
-@logout.route("/logout")
+@logout_bp.route("/logout")
 class Logout(MethodView):
+    @jwt_required()
+    @logout_bp.doc(security=[{"bearerAuth": []}])
     def get(self):
-        try:
-            cookie = request.get_json()['cookie']
-            header = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            }
+        username = get_jwt_identity()
 
-            response = requests.get(f"{Config.BASE_URL}/studentlogin/logout.php", headers=header, cookies=cookie)
+        if not rcli.exists(username):
+            abort(401, message="you aren't logged in to log out")
+        
+        cookies = rcli.hgetall(username)
+        print(cookies)
 
-            soup = BeautifulSoup(response.content, 'html.parser')
-            title = soup.find("title").string
+        header = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        }
 
-            if title and 'logout' in title.lower():
-                return {"message": "you are now logged out!"}, 200
+        response = requests.get(f"{Config.BASE_URL}/studentlogin/logout.php", headers=header, cookies=cookies)
 
-            abort(500, message="Error occured logout failed.")
-        except KeyError:
-            abort(404, message="cookie not found")
+        if not response.ok: 
+            abort(500, message="error occured while logging out")
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        title = soup.find("title").string
+
+        if title and 'logout' in title.lower():
+            rcli.delete(username)
+            return {"message": "you are now logged out!"}, 200

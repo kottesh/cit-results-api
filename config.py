@@ -1,3 +1,5 @@
+import os
+
 class Config:
     BASE_URL = "https://citstudentportal.org"
     API_TITLE = "cit-results-api"
@@ -8,3 +10,18 @@ class Config:
     OPENAPI_SWAGGER_UI_PATH = "/"
     OPENAPI_SWAGGER_UI_URL = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
+    API_SPEC_OPTIONS = {
+        "security": [{"bearerAuth": []}],
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                    "description": "Enter your bearer token in the format: Bearer <token>"
+                }
+            }
+        }
+    }
+
+    JWT_SECRET_KEY = os.getenv("SECRET_KEY", "luvuinfx") 
