@@ -1,8 +1,12 @@
+from ast import Bytes
 from flask import jsonify, make_response 
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint, abort
 from bs4 import BeautifulSoup
+from pypdf import PdfReader 
+from io import BytesIO
 from extensions import rcli
+import re
 import requests
 
 from config import Config
@@ -38,12 +42,13 @@ def results():
     return jsonify(exam_codes), 200
 
 """
-TODO: Improve this route. Instead of scraping data from site
-      which contains info about result such as course_code,
-      course_name, grade, pass/fail. But It doesn't show the CGPA
-      or GPA, I could get this data from the pdf.
-
-      fixin: May scrap the data from the pdf I guess!.
+Scraps data from data from site, pdf and do mixin
+to produce 
+{
+    gpa: "",
+    papers: {},
+    semester: ""
+}
 """
 @result_bp.get("result/<string:exam_code>")
 @jwt_required()
@@ -75,9 +80,6 @@ def getResultByExamCode(exam_code):
     if idx == -1:
         abort(404, message="invalid exam code")
 
-    # if not any(code.startswith(exam_code) for code in exam_codes):
-    #     abort(404, message="exam code not found")
-
     """
     This builds the string div_{table_no}. table_no is obtained from the exam_codes.
     Which will be in the format like NOV241 -> NOV(Session), 24(year), 1(order in the page)
@@ -92,7 +94,27 @@ def getResultByExamCode(exam_code):
         ]
         for row in rows
     ]
-    result = {subject[1]: subject[2:] for subject in data}
+
+    pdf_bin_data = requests.get(
+        f"https://citstudentportal.org/studentlogin/exam/result.php?exam_cd={exam_code}",
+        cookies=cookies,
+        headers=header
+    )
+    if not pdf_bin_data.ok:
+       abort(500, message="error occured while generating pdf")
+
+    gpa = re.search(
+        r'GPA for (.) Semester : (\d+.\d+)',
+        PdfReader(BytesIO(pdf_bin_data.content))
+            .get_page(0)
+            .extract_text()
+    ).group(2)
+
+    result = {
+        'semester': data[0][0],
+        'papers': {subject[1]: subject[2:] for subject in data},
+        'gpa': gpa
+    }
 
     return jsonify(result), 200
 

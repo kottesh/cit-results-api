@@ -44,7 +44,9 @@ class Profile(MethodView):
             tables
         ))
 
-        prof_data = {} 
+        prof_data = {
+           'profileUrl': f'https://citstudentportal.org/photo/student/{username}.jpg'
+        } 
 
         for label, value in zip(tables[0], tables[1]):
             if label and value:

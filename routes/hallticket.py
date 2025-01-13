@@ -75,6 +75,6 @@ def getHallTicketPdf(exam_code):
 
     hallticket = make_response(hallticket_bin_data.content)
     hallticket.headers['Content-Type'] = 'application/pdf'
-    hallticket.headers['Content-Disposition'] = f'inline; filename="HT_{exam_code}_{username}.pdf"'
+    hallticket.headers['Content-Disposition'] = f'attachment; filename="HT_{exam_code}_{username}.pdf"'
 
     return hallticket, 200

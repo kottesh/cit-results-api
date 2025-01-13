@@ -9,6 +9,10 @@ from config import Config
 
 notice_board_bp = Blueprint("notice-board", __name__)
 
+'''
+TODO: add attachment link for each announcement if any
+'''
+
 @notice_board_bp.route("notice-board")
 class NoticeBoard(MethodView):
     @jwt_required()
